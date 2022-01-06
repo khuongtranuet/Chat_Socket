@@ -3,20 +3,55 @@ const app = express();
 const http = require("http");
 const server = http.createServer(app);
 const io = require('socket.io')(server);
+const mysql = require('mysql');
 
-app.get("/", (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+const db = mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "12345678",
+    database: "chat_socket",
 });
 
-var usernames = {};
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + '/login.html');
+});
+
+let usernames = {};
+
+io.use((socket, next) => {
+    const username = socket.handshake.auth.username;
+    const password = socket.handshake.auth.password;
+    if(username && password) {
+        db.query("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, result, fields) => {
+            if (err) {
+                console.log('MySQL Query Error --> '+ err);
+            }
+            else{
+                console.log(result);
+                if(!result.length) {
+                    return next(new Error("LoginError"));
+                }
+                socket.username = username;
+                usernames[username] = username;
+                next();
+            }
+        });
+    }else{
+        return next(new Error("LoginError"));
+    }
+});
 
 io.on('connection', (socket) => {
     console.log('Một người dùng đã kết nối');
 
+    socket.emit('login', usernames, socket.username);
+    io.sockets.emit('notification', 'SERVER', socket.username + ' đã tham gia phòng chat');
+    io.sockets.emit('update_users', usernames);
+
     socket.on('add_user', (username) => {
         socket.username = username;
         usernames[username] = username;
-        io.sockets.emit('notification', 'SERVER', username + 'đã tham gia phòng chat');
+        io.sockets.emit('notification', 'SERVER', username + ' đã tham gia phòng chat');
 
         io.sockets.emit('update_users', usernames);
     });
@@ -28,8 +63,21 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('Người dùng đã ngắt kết nối');
         delete usernames[socket.username];
-        io.sockets.emit('cap_nhat_thanh_vien', usernames);
+        io.sockets.emit('update_users', usernames);
         socket.broadcast.emit('notification', 'SERVER', socket.username + ' đã rời phòng chat');
+    });
+
+    socket.on('base64 file', function (msg) {
+        console.log('received base64 file from');
+        // socket.username = msg.username;
+        io.sockets.emit('base64 file',
+            {
+              username: socket.username,
+              file: msg.file,
+              fileName: msg.fileName
+            }
+    
+        );
     });
 });
 

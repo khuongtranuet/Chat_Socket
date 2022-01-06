@@ -1,0 +1,96 @@
+<div style="display: flex;
+    text-align: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 20%;
+    margin-left: 40%;" id="form-login">
+    <label for="username">Tài khoản</label>
+    <input type="text" name="username" id="username">
+    <label for="">Mật khẩu</label>
+    <input type="password" name="password" id="password">
+    <button type="submit" id="submit">Đăng nhập</button>
+</div>
+<div id="form-chat">
+    <div style="float:left;width:100px;border-right:1px solid black;height:300px;padding:10px;overflow:scroll-y;">
+        <b>Thành viên</b>
+        <div id="users"></div>
+    </div>
+    <div style="float:left;width:300px;height:250px;overflow:scroll-y;padding:10px;">
+        <div id="conversation"></div>
+        <input id="data" style="width:200px;" />
+        <input type="file" id="uploadfile" name="uploadfile">
+        <input type="button" id="datasend" value="send" />
+    </div>
+</div>
+<script src="socket.io/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+<script>
+    let socket = io("http://localhost:3000", { autoConnect: false });
+    
+    $(document).ready(() => {
+        $('#form-login').show();
+        $('#form-chat').hide();
+        $('#submit').click(() => {
+            let username = $('#username').val();
+            let password = $('#password').val();
+            socket.auth = { username, password };
+            console.log(socket.auth);
+            socket.connect();
+        })
+        $(function(){
+            $('#datasend').click( function() {
+                var message = $('#data').val();
+                $('#data').val('');
+                socket.emit('send_message', message);
+            });
+        });
+
+        $('#uploadfile').bind('change', function(e){
+            var data = e.target.files[0];
+            $('#datasend').click(() => {
+                console.log(data);
+                readThenSendFile(data);
+            });   
+        });
+
+        function readThenSendFile(data){
+            var reader = new FileReader();
+            reader.onload = function(evt){
+                var msg ={};
+                // msg.username = username;
+                msg.file = evt.target.result;
+                msg.fileName = data.name;
+                socket.emit('base64 file', msg);
+            };
+            reader.readAsDataURL(data);
+        }
+    });
+    socket.on("login", (users, user) => {
+        $('#form-login').hide();
+        $('#form-chat').show();
+        $('#users').empty();
+        $.each(users, (key, value) => {
+			$('#users').append('<div>' + value + '</div>');
+		});
+    })
+
+    socket.on('update_users', (data) => {
+        $('#users').empty();
+        $.each(data, (key, value) => {
+			$('#users').append('<div>' + value + '</div>');
+		});
+    });
+
+    socket.on('notification', function (username, data) {
+		$('#conversation').append('<b>'+username + ':</b> ' + data + '<br>');
+	});
+    socket.on("connect_error", (err) => {
+        if (err.message === "LoginError") {
+            alert('Thong tin dang nhap sai');
+        }
+    });
+    socket.on('base64 file', (file) => {
+        console.log(file);
+        $('#conversation').append('<img style="width: 100px; height: auto;" src="' + file.file + '"></img><br>')
+    });
+</script>
