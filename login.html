@@ -1,4 +1,14 @@
-<div style="display: flex;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="./stylesss.css">
+</head>
+<body>
+    <div style="display: flex;
     text-align: center;
     justify-content: center;
     flex-direction: column;
@@ -11,15 +21,33 @@
     <button type="submit" id="submit">Đăng nhập</button>
 </div>
 <div id="form-chat">
-    <div style="float:left;width:100px;border-right:1px solid black;height:300px;padding:10px;overflow:scroll-y;">
+    <div style="float:left;width:10%;border-right:1px solid black;height:300px;padding:10px;overflow:scroll-y;">
         <b>Thành viên</b>
         <div id="users"></div>
     </div>
-    <div style="float:left;width:300px;height:250px;overflow:scroll-y;padding:10px;">
+    <div style="float:left;width:300px;height:300px;overflow:scroll-y;padding:10px; border-right:1px solid black;">
+        <b>CHAT THẾ GIỚI</b>
         <div id="conversation"></div>
         <input id="data" style="width:200px;" />
         <input type="file" id="uploadfile" name="uploadfile">
         <input type="button" id="datasend" value="send" />
+    </div>
+    <div>
+        <input type="text" id="room" style="width: 200px;">
+        <button id="createRoom">Room</button>
+    </div>
+    <div>
+        <b>List room</b>
+        <div id="listRoom"></div>
+    </div>
+    <div>
+        <b>Chat room</b>
+        <b id="nameRoom"></b>
+        <input type="hidden" value="" id="idroom">
+        <div id="conversation_room"></div>
+        <input id="dataroom" style="width:200px;" />
+        <input type="file" id="uploadfileroom" name="uploadfileroom">
+        <input type="button" id="sendroom" value="send" />
     </div>
 </div>
 <script src="socket.io/socket.io.js"></script>
@@ -39,28 +67,61 @@
         })
         $(function(){
             $('#datasend').click( function() {
-                var message = $('#data').val();
-                $('#data').val('');
-                socket.emit('send_message', message);
+                let message = $('#data').val();
+                if(message) {
+                    $('#data').val('');
+                    socket.emit('send_message', message);
+                }
             });
         });
 
         $('#uploadfile').bind('change', function(e){
-            var data = e.target.files[0];
-            $('#datasend').click(() => {
-                console.log(data);
-                readThenSendFile(data);
-            });   
+            let data = e.target.files[0];
+            console.log(data);
+            readThenSendFile(data);
+            $('#uploadfile').val('');
         });
 
         function readThenSendFile(data){
-            var reader = new FileReader();
+            let reader = new FileReader();
             reader.onload = function(evt){
-                var msg ={};
+                let msg ={};
                 // msg.username = username;
                 msg.file = evt.target.result;
                 msg.fileName = data.name;
                 socket.emit('base64 file', msg);
+            };
+            reader.readAsDataURL(data);
+        }
+
+        $('#createRoom').click(() => {
+            socket.emit('create_room', $('#room').val());
+            $('#room').val('');
+        });
+
+        $('#sendroom').click( function() {
+            let message = $('#dataroom').val();
+            if(message) {
+                $('#dataroom').val('');
+                socket.emit('send_room', message, $('#idroom').val());
+            }
+        });
+
+        $('#uploadfileroom').bind('change', function(e){
+            let data = e.target.files[0];
+            console.log(data);
+            readThenSendFileRoom(data);
+            $('#uploadfileroom').val('');
+        });
+
+        function readThenSendFileRoom(data){
+            let reader = new FileReader();
+            reader.onload = function(evt){
+                let msg ={};
+                // msg.username = username;
+                msg.file = evt.target.result;
+                msg.fileName = data.name;
+                socket.emit('base64 file room', msg, $('#idroom').val());
             };
             reader.readAsDataURL(data);
         }
@@ -70,14 +131,15 @@
         $('#form-chat').show();
         $('#users').empty();
         $.each(users, (key, value) => {
-			$('#users').append('<div>' + value + '</div>');
+            $('#users').append('<div class="avt-member" style="display: flex; flex-direction: row;"><div class="avt-img"><img style="height: 30px; width: 30px; border-radius: 15px;" src="https://static.turbosquid.com/Preview/001292/481/WV/_D.jpg" class="rounded-circle"></div><div>' + value + '</div></div>');
+			// $('#users').append('<div>' + value + '</div>');
 		});
     })
 
     socket.on('update_users', (data) => {
         $('#users').empty();
         $.each(data, (key, value) => {
-			$('#users').append('<div>' + value + '</div>');
+			$('#users').append('<div class="avt-member" style="display: flex; flex-direction: row;"><div class="avt-img"><img style="height: 30px; width: 30px; border-radius: 15px;" src="https://static.turbosquid.com/Preview/001292/481/WV/_D.jpg" class="rounded-circle"></div><div>' + value + '</div></div>');
 		});
     });
 
@@ -91,6 +153,31 @@
     });
     socket.on('base64 file', (file) => {
         console.log(file);
+        $('#conversation').append('<b>'+ file.username + ':</b><br>');
         $('#conversation').append('<img style="width: 100px; height: auto;" src="' + file.file + '"></img><br>')
     });
+
+    socket.on('base64 file room', (file) => {
+        console.log(file);
+        $('#conversation_room').append('<b>'+ file.username + ':</b><br>');
+        $('#conversation_room').append('<img style="width: 100px; height: auto;" src="' + file.file + '"></img><br>')
+    });
+    socket.on('listroom', (list_room) => {
+        $('#listRoom').empty();
+        $.each(list_room, (key, value) => {
+			$('#listRoom').append('<div>' + value + '</div>');
+		});
+        $('#conversation_room').empty();
+    })
+    socket.on('nameroom', (data) => {
+        $('#nameRoom').empty();
+        $('#nameRoom').append(data);
+        $('#idroom').val(data);
+    });
+    socket.on('messagetoroom', (user, data) => {
+        $('#conversation_room').append('<b>'+user + ':</b> ' + data + '<br>');
+    });
 </script>
+</body>
+</html>
+
