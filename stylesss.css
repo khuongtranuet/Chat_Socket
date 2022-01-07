@@ -1,0 +1,14 @@
+.avt-member {
+    display: flex;
+    flex-direction: column;
+}
+.avt-img {
+    height: 30px;
+    width: 30px;
+    border-radius: 15px;
+}
+.rounded-circle {
+    height: 30px;
+    width: 30px;
+    border-radius: 15px;
+}
