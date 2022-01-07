@@ -33,10 +33,23 @@ io.use((socket, next) => {
                 if(!result.length) {
                     return next(new Error("LoginError"));
                 }
-                socket.username = username;
-                usernames[username] = username;
-                roomid[socket.id] = username;
-                next();
+                db.query("SELECT * FROM rooms", (err, result, fields) => {
+                    if (err) {
+                        console.log('MySQL Query Error --> '+ err);
+                    }
+                    else{
+                        console.log(result);
+                        if(result.length) {
+                            for(const i of result) {
+                                roomid[i.name] = i.name;
+                            }
+                            socket.username = username;
+                            usernames[username] = username;
+                            roomid[socket.id] = username;
+                            next();
+                        }
+                    }
+                });
             }
         });
     }else{
@@ -108,6 +121,17 @@ io.on('connection', (socket) => {
         if(!checkroom.length) {
             roomid[room] = room;
         }
+        db.query("SELECT * FROM chats WHERE room_name = ?", [room], (err, result, fields) => {
+            if (err) {
+                console.log('MySQL Query Error --> '+ err);
+            }
+            else{
+                console.log(result);
+                if(result.length) {
+                    io.sockets.to(room).emit('storemessage', result);
+                }
+            }
+        });
         // for(r of io.sockets.adapter.rooms) {
             // console.log(r);
             // roomid[room] = room;
@@ -118,6 +142,10 @@ io.on('connection', (socket) => {
 
     socket.on('send_room', (msg, idRoom) => {
         io.sockets.to(idRoom).emit('messagetoroom', socket.username, msg);
+        db.query("INSERT INTO chats (room_name, user_send, user_to, message) VALUES (?, ?, ?, ?)", [idRoom, socket.username, idRoom, msg], function (err, result) {
+            if (err) throw err;
+            console.log("1 record ins erted");
+        });
     });
 });
 

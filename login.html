@@ -177,6 +177,11 @@
     socket.on('messagetoroom', (user, data) => {
         $('#conversation_room').append('<b>'+user + ':</b> ' + data + '<br>');
     });
+    socket.on('storemessage', (storemessage) => {
+        for (const mess of storemessage) {
+            $('#conversation_room').append('<b>'+ mess.user_send + ':</b> ' + mess.message + '<br>');
+        }
+    })
 </script>
 </body>
 </html>
